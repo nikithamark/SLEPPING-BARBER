@@ -1,0 +1,172 @@
+//QUESTION 1
+
+#include <unistd.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <semaphore.h>
+
+#define NUM_THREADS 100
+pthread_t threads[NUM_THREADS];
+
+int seats = 0;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+sem_t customers;
+sem_t barber;
+
+
+void *barberBob(void *threadid){
+  int haircuts = NUM_THREADS-1;
+  while(haircuts > 0){
+    sem_wait(&customers);
+    pthread_mutex_lock(&mutex);
+    seats++;
+    sem_post(&barber);
+    haircuts--;
+    printf("cutting some hair, waiting on next customer\n");
+    pthread_mutex_unlock(&mutex);
+    printf("\n Barber Thread: haircuts = %d, chairs left = %d \n",haircuts,seats);
+  }
+  printf("Closing shop, bye!\n");
+  pthread_exit(NULL);
+}
+
+void *customer(void *threadid)
+{
+//int threadid;
+  int haircuts = 1;
+  while(haircuts > 0){
+    pthread_mutex_lock(&mutex);
+    if(seats > 0){
+      seats--;
+      printf("taking a seat, waiting on barber\n");
+      sem_post(&customers);
+      haircuts--;
+  sleep(1);
+      pthread_mutex_unlock(&mutex);
+      sem_wait(&barber);
+      printf("getting a haircut %d \n", (int)threadid);
+    }
+    else{
+      pthread_mutex_unlock(&mutex);
+      printf("\n Customer Thread:%d couldn't get a haircut, seats = %d\n",(int)threadid, seats);
+      sleep(1);
+    }
+  }
+  pthread_exit(NULL);
+}
+
+int main(int argc, char *argv[])
+{
+  if(argc < 2 || argc > 3){
+    printf("Wrong number of arguments: Usage > barber.exe x \n");
+  }
+  seats = atoi(argv[1]);
+  printf("number of chairs %d \n", seats);
+  sem_init(&customers,0,0);
+  sem_init(&barber,0,0);
+  int t;
+  for(t=0;t<NUM_THREADS;t++)
+  {
+    printf("Creating thread %d\n", t);
+    if(t == 0)
+    {
+      pthread_create(&threads[t], NULL, barberBob, NULL);
+    }
+    else{
+      pthread_create(&threads[t], NULL, customer,NULL);
+    }
+  }
+  for(t = 0; t < NUM_THREADS; t++)
+    pthread_join(threads[t],NULL);
+  pthread_exit(NULL);
+}
+
+
+//QUESTION 2
+
+#include<stdio.h>
+#include<unistd.h>
+struct pro_sch
+{
+	int at,bt,id,wtime,tt,ct;
+	bool flag;
+}s[10];
+	int ab;
+void sort(pro_sch *queue[10],int n)
+{
+	for(int i=0;i<n-1;i++)
+		for(int j=0;j<n-i-1;j++)
+			if(queue[j]->bt>queue[j+1]->bt)
+			{
+				pro_sch *temp=queue[j];
+				queue[j]=queue[j+1];
+				queue[j+1]=temp;
+			}
+}
+int main()
+{
+	int n,clock;
+	printf("Enter Number of process: ");
+	scanf("%d",&n);
+	for(int i=0;i<n;i++)
+	{
+		printf("Enter the arrival time for Process%d :",i+1);
+		scanf("%d",&s[i].at);
+		s[i].id=i+1;
+		s[i].bt=s[i].at*2;
+		s[i].flag=false;
+		s[i].wtime=0;
+	}
+	printf("--------------------LONGEST JOB FIRST--------------\nSequence of flagcution : \n");
+	pro_sch s1[n],*queue[n];
+	int size=0;
+
+	int totalcomplete=0;
+	int totalturnaround=0;
+	int totalwaiting=0;
+	for(int i=0;i<n;i++)
+	{
+		totalwaiting += s[i].wtime;
+		totalcomplete=s[i].bt+s[i].wtime+s[i].at+totalcomplete;
+		totalturnaround=(s[i].bt+s[i].wtime)+totalturnaround;
+	}
+	printf("\nDetails of processes are: \n");
+	printf("ID\tAT\t\tBT\t\tCT\t\tTT\t\tWT\n");
+	for(int i=0;i<n;i++)
+	{
+		printf("%d\t%d\t\t%d\t\t%d\t\t%d\t\t%d\n",s[i].id,s[i].at,s[i].bt,s[i].bt+s[i].wtime+s[i].at,s[i].bt+s[i].wtime,s[i].wtime);
+	}
+	printf("Average Turn Around Time: %.2f\n",(float)(totalturnaround)/n);
+	printf("Average Waiting Time    : %.2f\n",(float)(totalwaiting)/n);
+	printf("\n\n--------------------Shortest JOB FIRST--------------\n\n");
+	s[0].ct=s[0].bt+s[0].at;
+	s[0].tt=s[0].ct-s[0].at;
+	s[0].wtime=s[0].tt-s[0].bt;
+	
+	for(int i=1;i<n;i++)
+	{
+		ab=s[i-1].ct;
+		sort(s+i,s+n,comp2);
+		if(s[i-1].ct<s[i].at)
+		{
+			s[i].ct=s[i-1].ct+s[i].bt+(s[i].at-s[i-1].ct);
+		}
+		else
+		{
+
+			s[i].ct=s[i-1].ct+s[i].bt;
+
+		}
+		s[i].tt=s[i].ct-s[i].at;
+		s[i].wtime=s[i].tt-s[i].bt;
+	}
+	float tat,wtt;
+	for(int i=0;i<n;i++)
+	{
+		tat=tat+s[i].tt;
+		wtt=wtt+s[i].wtime;
+	}
+	
+		printf("Average Turn Around Time : %.2f\nAverage Waiting Time     : %.2f",tat/n,wtt/n);
+}
